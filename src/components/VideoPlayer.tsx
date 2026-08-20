@@ -89,10 +89,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, [clips, currentTime, totalDuration]);
 
+  const isImageClip = useMemo(() => {
+    if (!activeClipInfo) return false;
+    const url = activeClipInfo.clip.url;
+    return url.startsWith('data:image') || 
+           url.startsWith('blob:') && activeClipInfo.clip.name.includes('(صورة)') ||
+           /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(url);
+  }, [activeClipInfo]);
+
   // Sync video source, volume, playback speed and seek time
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !activeClipInfo) return;
+    if (!video || !activeClipInfo || isImageClip) return;
 
     const { clip, sourceTime } = activeClipInfo;
 
@@ -116,7 +124,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     } else {
       video.pause();
     }
-  }, [activeClipInfo?.clip.url, activeClipInfo?.clip.id, isPlaying, isMuted]);
+  }, [activeClipInfo?.clip.url, activeClipInfo?.clip.id, isPlaying, isMuted, isImageClip]);
 
   // Animation frame loop for smooth playback scrubbing
   useEffect(() => {
@@ -251,22 +259,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           onMouseUp={handleContainerMouseUp}
           className={`relative ${aspectClass} bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-300 transition-all duration-300 flex items-center justify-center`}
         >
-          {/* Active Clip Video */}
+          {/* Active Clip: Video or Image */}
           {activeClipInfo ? (
-            <video
-              ref={videoRef}
-              src={activeClipInfo.clip.url}
-              playsInline
-              muted={isMuted}
-              style={getFilterStyle(activeClipInfo.clip)}
-              className="w-full h-full object-cover pointer-events-none"
-            />
+            isImageClip ? (
+              <img
+                src={activeClipInfo.clip.url}
+                alt={activeClipInfo.clip.name}
+                style={getFilterStyle(activeClipInfo.clip)}
+                className="w-full h-full object-cover pointer-events-none select-none"
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                src={activeClipInfo.clip.url}
+                playsInline
+                muted={isMuted}
+                style={getFilterStyle(activeClipInfo.clip)}
+                className="w-full h-full object-cover pointer-events-none"
+              />
+            )
           ) : (
             <div className="flex flex-col items-center justify-center text-center p-6 text-slate-400 gap-3">
               <Smartphone className="w-12 h-12 text-slate-600 stroke-[1.5]" />
               <div>
                 <p className="text-sm font-semibold text-slate-200">لا يوجد مقطع في الخط الزمني</p>
-                <p className="text-xs text-slate-400 mt-1">اختر من الوسائط لإضافة مقاطع</p>
+                <p className="text-xs text-slate-400 mt-1">ارفع فيديو أو صورة لعرضها وتحريرها هنا</p>
               </div>
             </div>
           )}
@@ -401,7 +418,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => onTimeUpdate(Math.max(0, currentTime - 1))}
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             title="رجوع ثانية واحدة (-1s)"
           >
             <ChevronRight className="w-4 h-4" />
@@ -409,7 +426,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           <button
             onClick={onTogglePlay}
-            className="w-9 h-9 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center transition active:scale-95 shadow-sm shadow-sky-500/25"
+            className="w-9 h-9 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center transition active:scale-95 shadow-sm shadow-sky-500/25 cursor-pointer"
             title={isPlaying ? 'إيقاف مؤقت (Space)' : 'تشغيل (Space)'}
           >
             {isPlaying ? (
@@ -421,7 +438,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           <button
             onClick={() => onTimeUpdate(Math.min(totalDuration, currentTime + 1))}
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             title="تقديم ثانية واحدة (+1s)"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -440,7 +457,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsMuted(!isMuted)}
-            className={`p-1.5 rounded-lg transition ${
+            className={`p-1.5 rounded-lg transition cursor-pointer ${
               isMuted ? 'text-rose-500 bg-rose-50' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
             }`}
             title={isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت'}
@@ -451,7 +468,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           {aspectRatio === '9:16' && (
             <button
               onClick={() => setShowSafeZones(!showSafeZones)}
-              className={`p-1.5 rounded-lg transition ${
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
                 showSafeZones ? 'text-sky-600 bg-sky-50' : 'text-slate-400 hover:text-slate-600'
               }`}
               title="دليل المناطق الآمنة لـ TikTok/Reels"
