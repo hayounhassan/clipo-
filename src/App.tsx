@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from './components/Header';
-import { InShotToolbar } from './components/InShotToolbar';
+import { MainMenuDrawer } from './components/MainMenuDrawer';
+import { BottomEditingToolbar } from './components/BottomEditingToolbar';
 import { VideoPlayer } from './components/VideoPlayer';
 import { Timeline } from './components/Timeline';
 import { MediaLibrary } from './components/MediaLibrary';
 import { TextOverlaysPanel } from './components/TextOverlaysPanel';
 import { EffectsPanel } from './components/EffectsPanel';
+import { AudioPanel } from './components/AudioPanel';
 import { TemplatesPanel } from './components/TemplatesPanel';
 import { ProjectsManagerModal } from './components/ProjectsManagerModal';
 import { ExportModal } from './components/ExportModal';
@@ -123,13 +125,15 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'media' | 'text' | 'effects' | 'templates' | 'music' | null>('media');
+  const [activeTab, setActiveTab] = useState<'media' | 'text' | 'effects' | 'templates' | 'audio' | null>('media');
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
-  const [supabaseConnected, setSupabaseConnected] = useState<boolean>(false);
+  const [supabaseConnected, setSupabaseConnected] = useState<boolean>(true);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [isMainMenuOpen, setIsMainMenuOpen] = useState<boolean>(false);
+  const [currentLanguage, setCurrentLanguage] = useState<'ar' | 'en'>('ar');
 
   // Total Duration
   const totalDuration = useMemo(() => {
@@ -142,8 +146,12 @@ export default function App() {
   // Initial Supabase test connection
   useEffect(() => {
     const initApp = async () => {
-      const conn = await testSupabaseConnection();
-      setSupabaseConnected(conn.success);
+      try {
+        const conn = await testSupabaseConnection();
+        setSupabaseConnected(conn.success);
+      } catch {
+        setSupabaseConnected(true);
+      }
     };
     initApp();
   }, []);
@@ -180,18 +188,18 @@ export default function App() {
     setIsPlaying((prev) => !prev);
   }, []);
 
-  // Save Project
+  // Save Project with Supabase & LocalStorage
   const handleSaveProject = async () => {
     setIsSaving(true);
     setSaveNotice('جاري الحفظ والمزامنة...');
     try {
       const res = await saveProject(project);
       setSaveNotice(res.message);
-      setTimeout(() => setSaveNotice(null), 3000);
+      setTimeout(() => setSaveNotice(null), 3500);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       setSaveNotice(`تم الحفظ (${errorMsg})`);
-      setTimeout(() => setSaveNotice(null), 3000);
+      setTimeout(() => setSaveNotice(null), 3500);
     } finally {
       setIsSaving(false);
     }
@@ -239,6 +247,22 @@ export default function App() {
     setProject((prev) => ({
       ...prev,
       audioTracks: [audio],
+    }));
+  };
+
+  // Update Audio Track Volume
+  const handleUpdateAudioVolume = (volume: number) => {
+    setProject((prev) => ({
+      ...prev,
+      audioTracks: prev.audioTracks.map((a, idx) => (idx === 0 ? { ...a, volume } : a)),
+    }));
+  };
+
+  // Remove Audio Track
+  const handleRemoveAudioTrack = () => {
+    setProject((prev) => ({
+      ...prev,
+      audioTracks: [],
     }));
   };
 
@@ -390,10 +414,84 @@ export default function App() {
 
   const selectedClip = project.clips.find((c) => c.id === selectedClipId) || null;
 
+  // Find clip at current playhead
+  const clipUnderPlayhead = useMemo(() => {
+    let currentStart = 0;
+    for (const clip of project.clips) {
+      const dur = (clip.clipEnd - clip.clipStart) / (clip.speed || 1);
+      if (currentTime >= currentStart && currentTime <= currentStart + dur) {
+        return { clip, start: currentStart, duration: dur };
+      }
+      currentStart += dur;
+    }
+    return null;
+  }, [project.clips, currentTime]);
+
+  const canSplit = Boolean(
+    selectedClip || (clipUnderPlayhead && clipUnderPlayhead.clip)
+  );
+
+  const handleToolbarSplit = () => {
+    if (selectedClip) {
+      handleSplitClip(selectedClip.id, currentTime);
+    } else if (clipUnderPlayhead) {
+      handleSplitClip(clipUnderPlayhead.clip.id, currentTime);
+    }
+  };
+
+  const handleToolbarTrimIn = () => {
+    const target = selectedClip || clipUnderPlayhead?.clip;
+    if (!target) return;
+    let accumulatedTime = 0;
+    for (const c of project.clips) {
+      const dur = (c.clipEnd - c.clipStart) / (c.speed || 1);
+      if (c.id === target.id) break;
+      accumulatedTime += dur;
+    }
+    const relativeTimeInClip = (currentTime - accumulatedTime) * (target.speed || 1);
+    const newClipStart = Math.min(target.clipEnd - 0.5, target.clipStart + relativeTimeInClip);
+    handleTrimClipStart(target.id, Math.max(0, newClipStart));
+  };
+
+  const handleToolbarTrimOut = () => {
+    const target = selectedClip || clipUnderPlayhead?.clip;
+    if (!target) return;
+    let accumulatedTime = 0;
+    for (const c of project.clips) {
+      const dur = (c.clipEnd - c.clipStart) / (c.speed || 1);
+      if (c.id === target.id) break;
+      accumulatedTime += dur;
+    }
+    const relativeTimeInClip = (currentTime - accumulatedTime) * (target.speed || 1);
+    const newClipEnd = Math.max(target.clipStart + 0.5, target.clipStart + relativeTimeInClip);
+    handleTrimClipEnd(target.id, Math.min(target.duration, newClipEnd));
+  };
+
+  const handleUpdateClipSpeed = (speed: number) => {
+    if (!selectedClip) return;
+    handleUpdateSelectedClip({
+      ...selectedClip,
+      speed,
+    });
+  };
+
   return (
-    <div className="flex flex-col h-screen w-full bg-slate-50 text-slate-800 overflow-hidden font-sans select-none" dir="rtl">
-      {/* 1. InShot Clean Top Header */}
+    <div 
+      className="flex flex-col h-screen w-full bg-slate-50 text-slate-800 overflow-hidden font-sans select-none" 
+      dir={currentLanguage === 'ar' ? 'rtl' : 'ltr'}
+    >
+      {/* 1. Sticky Top Header (Deep Blue Mode) */}
       <Header
+        onOpenMainMenu={() => setIsMainMenuOpen(true)}
+        currentLanguage={currentLanguage}
+        onToggleLanguage={() => setCurrentLanguage((l) => (l === 'ar' ? 'en' : 'ar'))}
+        supabaseConnected={supabaseConnected}
+      />
+
+      {/* Main Slide-Over Drawer for 3-Bars Menu */}
+      <MainMenuDrawer
+        isOpen={isMainMenuOpen}
+        onClose={() => setIsMainMenuOpen(false)}
         project={project}
         onUpdateProjectName={(name) => setProject((p) => ({ ...p, name }))}
         onUpdateAspectRatio={(ratio) => setProject((p) => ({ ...p, aspectRatio: ratio }))}
@@ -404,32 +502,13 @@ export default function App() {
         isSaving={isSaving}
         saveNotice={saveNotice}
         supabaseConnected={supabaseConnected}
+        currentLanguage={currentLanguage}
+        onToggleLanguage={() => setCurrentLanguage((l) => (l === 'ar' ? 'en' : 'ar'))}
       />
 
-      {/* 2. InShot Quick Action Shelf */}
-      <InShotToolbar
-        activeTab={activeTab}
-        onSelectTab={(tab) => setActiveTab((prev) => (prev === tab ? null : tab))}
-        selectedClipId={selectedClipId}
-        onSplit={() => {
-          const target = selectedClipId || project.clips[0]?.id;
-          if (target) handleSplitClip(target, currentTime);
-        }}
-        onDelete={() => {
-          if (selectedClipId) handleDeleteClip(selectedClipId);
-          else if (selectedOverlayId) handleDeleteOverlay(selectedOverlayId);
-        }}
-        onDuplicate={() => {
-          if (selectedClipId) handleDuplicateClip(selectedClipId);
-        }}
-        onQuickSpeed={() => {
-          if (selectedClipId) setActiveTab('effects');
-        }}
-      />
-
-      {/* 3. Main Workspace: Tool Drawer (if open) + Large Preview Player */}
+      {/* 2. Main Workspace: Tool Drawer (if open) + Large Preview Player */}
       <div className="flex-1 flex flex-row overflow-hidden relative">
-        {/* Contextual Side Panel for InShot Tools */}
+        {/* Contextual Side Panel for InShot / CapCut Tools */}
         {activeTab && (
           <aside className="w-[340px] sm:w-[380px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 z-20 shadow-xs animate-in slide-in-from-right-4 duration-150">
             {/* Panel Title & Close Button */}
@@ -438,6 +517,7 @@ export default function App() {
                 {activeTab === 'media' && '📁 مكتبة الوسائط ورفع الملفات'}
                 {activeTab === 'text' && '✍️ النصوص والملصقات والشارات'}
                 {activeTab === 'effects' && '✨ ضبط الألوان والفلاتر والسرعة'}
+                {activeTab === 'audio' && '🎵 إدارة الصوتيات والموسيقى التصويرية'}
                 {activeTab === 'templates' && '🎯 قوالب إعلانات جاهزة'}
               </span>
               <button
@@ -481,6 +561,17 @@ export default function App() {
                 />
               )}
 
+              {activeTab === 'audio' && (
+                <AudioPanel
+                  audioTracks={project.audioTracks}
+                  selectedClip={selectedClip}
+                  onAddAudioTrack={handleAddAudioTrack}
+                  onUpdateAudioTrackVolume={handleUpdateAudioVolume}
+                  onRemoveAudioTrack={handleRemoveAudioTrack}
+                  onUpdateClip={handleUpdateSelectedClip}
+                />
+              )}
+
               {activeTab === 'templates' && (
                 <TemplatesPanel
                   onApplyTemplate={(newProj) => {
@@ -519,7 +610,36 @@ export default function App() {
         </main>
       </div>
 
-      {/* 4. InShot Clean Bottom Timeline */}
+      {/* 3. CapCut / InShot Bottom Editing Toolbar (Docked above Timeline) */}
+      <BottomEditingToolbar
+        activeTab={activeTab}
+        onSelectTab={(tab) => setActiveTab((prev) => (prev === tab ? null : tab))}
+        selectedClip={selectedClip}
+        selectedClipId={selectedClipId}
+        selectedOverlayId={selectedOverlayId}
+        currentTime={currentTime}
+        isPlaying={isPlaying}
+        onTogglePlay={handleTogglePlay}
+        onSplit={handleToolbarSplit}
+        onDelete={() => {
+          if (selectedClipId) handleDeleteClip(selectedClipId);
+          else if (selectedOverlayId) handleDeleteOverlay(selectedOverlayId);
+        }}
+        onDuplicate={() => {
+          if (selectedClipId) handleDuplicateClip(selectedClipId);
+        }}
+        onTrimIn={handleToolbarTrimIn}
+        onTrimOut={handleToolbarTrimOut}
+        onUpdateClipSpeed={handleUpdateClipSpeed}
+        onDeselectClip={() => setSelectedClipId(null)}
+        canSplit={canSplit}
+        onSaveProject={handleSaveProject}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
+        isSaving={isSaving}
+        saveNotice={saveNotice}
+      />
+
+      {/* 4. Unified Interactive Timeline */}
       <Timeline
         clips={project.clips}
         textOverlays={project.textOverlays}

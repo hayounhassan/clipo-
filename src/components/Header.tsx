@@ -1,188 +1,76 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
+  Menu, 
   Film, 
-  Smartphone, 
-  Tv, 
-  Square, 
-  Save, 
-  FolderOpen, 
-  Download, 
-  PlusCircle, 
-  Check, 
-  Cloud,
-  Edit2
+  ChevronDown
 } from 'lucide-react';
-import { AspectRatio, ProjectState } from '../types';
+import { ProjectState } from '../types';
 
 interface HeaderProps {
-  project: ProjectState;
-  onUpdateProjectName: (name: string) => void;
-  onUpdateAspectRatio: (ratio: AspectRatio) => void;
-  onSaveProject: () => void;
-  onNewProject: () => void;
-  onOpenProjectsList: () => void;
-  onOpenExportModal: () => void;
-  isSaving: boolean;
-  saveNotice: string | null;
-  supabaseConnected: boolean;
+  project?: ProjectState;
+  onOpenMainMenu: () => void;
+  currentLanguage: 'ar' | 'en';
+  onToggleLanguage: () => void;
+  supabaseConnected?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  project,
-  onUpdateProjectName,
-  onUpdateAspectRatio,
-  onSaveProject,
-  onNewProject,
-  onOpenProjectsList,
-  onOpenExportModal,
-  isSaving,
-  saveNotice,
-  supabaseConnected,
+  onOpenMainMenu,
+  currentLanguage,
+  onToggleLanguage,
 }) => {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [tempTitle, setTempTitle] = useState(project.name);
-
-  const handleTitleSubmit = () => {
-    if (tempTitle.trim()) {
-      onUpdateProjectName(tempTitle.trim());
-    } else {
-      setTempTitle(project.name);
-    }
-    setIsEditingTitle(false);
-  };
-
   return (
-    <header className="bg-white border-b border-slate-200 text-slate-800 px-4 py-2 flex flex-wrap items-center justify-between gap-3 select-none">
-      {/* Brand & Project Title */}
-      <div className="flex items-center gap-3">
-        {/* InShot styled Calm Sky Badge */}
-        <div className="flex items-center gap-2 bg-sky-500 text-white px-2.5 py-1.5 rounded-xl font-bold text-xs shadow-sm shadow-sky-500/20">
-          <Film className="w-4 h-4 stroke-[2.2]" />
-          <span>InShot Web</span>
-        </div>
-
-        {/* Project Name Editor */}
-        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 hover:border-slate-300 px-3 py-1 rounded-lg transition-colors">
-          {isEditingTitle ? (
-            <input
-              type="text"
-              value={tempTitle}
-              onChange={(e) => setTempTitle(e.target.value)}
-              onBlur={handleTitleSubmit}
-              onKeyDown={(e) => e.key === 'Enter' && handleTitleSubmit()}
-              autoFocus
-              className="bg-white text-slate-900 text-xs font-semibold px-2 py-0.5 rounded outline-none border border-sky-500 w-44"
-            />
-          ) : (
-            <button
-              onClick={() => {
-                setTempTitle(project.name);
-                setIsEditingTitle(true);
-              }}
-              title="انقر لتعديل اسم المشروع"
-              className="text-xs font-semibold text-slate-700 hover:text-sky-600 flex items-center gap-1.5"
-            >
-              <span>{project.name}</span>
-              <Edit2 className="w-3 h-3 text-slate-400" />
-            </button>
-          )}
-        </div>
-
-        {/* Supabase Status indicator */}
-        <div 
-          className="hidden sm:flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-slate-600 font-medium"
-          title="متصل بخدمة Supabase السحابية لتخزين ومزامنة المشاريع"
+    <header 
+      id="main-sticky-header" 
+      dir="rtl"
+      className="sticky top-0 z-30 w-full bg-[#0B1E3B] border-b border-[#1A365D] shadow-md px-3 sm:px-6 py-2.5 flex items-center justify-between select-none text-white transition-all relative"
+    >
+      {/* 1. أقصى اليمين (Right Side): أيقونة القائمة الرئيسية (3 شرطات) مع أيقونة الفيديو */}
+      <div className="flex items-center gap-2.5 z-10 flex-shrink-0">
+        {/* Hamburger Menu (3 Horizontal Lines) in crisp white */}
+        <button
+          id="btn-main-menu-toggle"
+          onClick={onOpenMainMenu}
+          className="p-2 rounded-xl text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 active:scale-95 transition flex items-center justify-center shadow-xs cursor-pointer"
+          title="فتح القائمة الرئيسية والمشاريع والتصدير"
+          aria-label="القائمة الرئيسية"
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span>سحابي Supabase</span>
+          <Menu className="w-5 h-5 text-white" />
+        </button>
+
+        {/* Video Film Badge */}
+        <div className="hidden sm:flex items-center pr-2 border-r border-white/15">
+          <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-white flex items-center justify-center border border-sky-400/30">
+            <Film className="w-3.5 h-3.5 text-sky-300" />
+          </div>
         </div>
       </div>
 
-      {/* Aspect Ratio Switcher (Canvas Dimension Controls) */}
-      <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 gap-0.5">
-        <button
-          onClick={() => onUpdateAspectRatio('9:16')}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-            project.aspectRatio === '9:16'
-              ? 'bg-white text-sky-600 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-          }`}
-          title="نسبة 9:16 - مثالية لـ Reels و TikTok و Shorts"
-        >
-          <Smartphone className="w-3.5 h-3.5" />
-          <span>9:16 عمودي</span>
-        </button>
-
-        <button
-          onClick={() => onUpdateAspectRatio('16:9')}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-            project.aspectRatio === '16:9'
-              ? 'bg-white text-sky-600 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-          }`}
-          title="نسبة 16:9 - لليوتيوب وشاشات العرض العريضة"
-        >
-          <Tv className="w-3.5 h-3.5" />
-          <span>16:9 عريض</span>
-        </button>
-
-        <button
-          onClick={() => onUpdateAspectRatio('1:1')}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-            project.aspectRatio === '1:1'
-              ? 'bg-white text-sky-600 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-          }`}
-          title="نسبة 1:1 - مربعة لمنشورات إنستغرام وفيسبوك"
-        >
-          <Square className="w-3.5 h-3.5" />
-          <span>1:1 مربع</span>
-        </button>
+      {/* 2. في منتصف الشريط تماماً (Exact Center): شعار النص "Clipo" مستقر وواضح */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none sm:pointer-events-auto z-10">
+        <span className="font-black text-xl sm:text-2xl tracking-tight text-white font-sans drop-shadow-sm">
+          Clipo
+        </span>
+        <span className="text-[10px] font-bold bg-sky-500/30 text-sky-200 border border-sky-400/40 px-1.5 py-0.5 rounded-md tracking-wider uppercase">
+          PRO
+        </span>
       </div>
 
-      {/* Action Buttons: Save, Projects, Export */}
-      <div className="flex items-center gap-2">
-        {saveNotice && (
-          <span className="text-[11px] text-sky-700 hidden lg:inline font-medium bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-md">
-            {saveNotice}
+      {/* 3. أقصى اليسار (Left Side): زر اللغة الجديد والمختصر (أيقونة وحرف اللغة مع السهم) */}
+      <div className="flex items-center z-10 flex-shrink-0">
+        <button
+          id="btn-language-compact-toggle"
+          onClick={onToggleLanguage}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition active:scale-95 shadow-xs cursor-pointer"
+          title="تبديل اللغة (Switch Language)"
+        >
+          <span className="font-serif font-black text-sm tracking-tight text-white px-0.5">
+            {currentLanguage === 'ar' ? 'ع' : 'A'}
           </span>
-        )}
-
-        <button
-          onClick={onSaveProject}
-          disabled={isSaving}
-          className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 transition active:scale-95 disabled:opacity-50"
-          title="حفظ المشروع في Supabase"
-        >
-          <Save className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin text-sky-500' : 'text-slate-500'}`} />
-          <span>{isSaving ? 'جاري الحفظ...' : 'حفظ'}</span>
-        </button>
-
-        <button
-          onClick={onOpenProjectsList}
-          className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 transition active:scale-95"
-          title="فتح قائمة المشاريع"
-        >
-          <FolderOpen className="w-3.5 h-3.5 text-slate-500" />
-          <span className="hidden sm:inline">المشاريع</span>
-        </button>
-
-        <button
-          onClick={onNewProject}
-          className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 transition active:scale-95"
-          title="إنشاء مشروع جديد"
-        >
-          <PlusCircle className="w-3.5 h-3.5 text-slate-500" />
-          <span className="hidden sm:inline">جديد</span>
-        </button>
-
-        <button
-          onClick={onOpenExportModal}
-          className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm shadow-sky-500/25 transition active:scale-95"
-          title="تصدير وتحميل الفيديو النهائي"
-        >
-          <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span>تصدير الفيديو</span>
+          <span className="text-[11px] font-sans font-medium text-white/90 hidden sm:inline">
+            {currentLanguage === 'ar' ? 'العربية' : 'EN'}
+          </span>
+          <ChevronDown className="w-3.5 h-3.5 text-white/80" />
         </button>
       </div>
     </header>

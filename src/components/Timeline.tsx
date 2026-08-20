@@ -164,91 +164,50 @@ export const Timeline: React.FC<TimelineProps> = ({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      {/* InShot Simple Action Toolbar */}
+      {/* Timeline Controls Header (Playhead info, Jump, Zoom) */}
       <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center justify-between gap-3 text-xs">
-        {/* Primary Controls (Play, Split, Trim, Duplicate, Delete) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto">
+        {/* Playback & Timecode */}
+        <div className="flex items-center gap-2">
           {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
-            className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-600 text-white px-3.5 py-1.5 rounded-lg font-bold transition shadow-sm"
+            className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-600 text-white px-3.5 py-1.5 rounded-lg font-bold transition shadow-xs"
             title="تشغيل / إيقاف مؤقت (Space)"
           >
             {isPlaying ? <Pause className="w-3.5 h-3.5 fill-white" /> : <Play className="w-3.5 h-3.5 fill-white ml-0.5" />}
             <span>{isPlaying ? 'إيقاف' : 'تشغيل'}</span>
           </button>
 
-          <div className="h-4 w-px bg-slate-300 mx-1"></div>
-
-          {/* Split (تقسيم) */}
+          {/* Jump to start */}
           <button
-            onClick={handleSplitAction}
-            className="flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 font-semibold transition"
-            title="تقسيم المقطع عند موضع المؤشر الحالي"
+            onClick={() => onTimeUpdate(0)}
+            className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition"
+            title="الرجوع إلى بداية الفيديو"
           >
-            <Scissors className="w-3.5 h-3.5 text-sky-500" />
-            <span>تقسيم (Split)</span>
+            <ChevronsRight className="w-3.5 h-3.5" />
           </button>
 
-          {/* Trim In (قص البداية) */}
-          <button
-            onClick={handleTrimInAtPlayhead}
-            className="flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-200 font-medium transition"
-            title="قص بداية المقطع حتى موقع المؤشر"
-          >
-            <ChevronsRight className="w-3.5 h-3.5 text-slate-500" />
-            <span>قص البداية (Trim In)</span>
-          </button>
-
-          {/* Trim Out (قص النهاية) */}
-          <button
-            onClick={handleTrimOutAtPlayhead}
-            className="flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-200 font-medium transition"
-            title="قص نهاية المقطع بعد موقع المؤشر"
-          >
-            <ChevronsLeft className="w-3.5 h-3.5 text-slate-500" />
-            <span>قص النهاية (Trim Out)</span>
-          </button>
-
-          {/* Duplicate (تكرار) */}
-          {selectedClipId && (
-            <button
-              onClick={() => onDuplicateClip(selectedClipId)}
-              className="flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-200 font-medium transition"
-              title="تكرار المقطع المحدد"
-            >
-              <Copy className="w-3.5 h-3.5 text-slate-500" />
-              <span>تكرار</span>
-            </button>
-          )}
-
-          {/* Delete (حذف) */}
-          {(selectedClipId || selectedOverlayId) && (
-            <button
-              onClick={() => {
-                if (selectedClipId) onDeleteClip(selectedClipId);
-                if (selectedOverlayId) onDeleteOverlay(selectedOverlayId);
-              }}
-              className="flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg border border-rose-200 font-semibold transition"
-              title="حذف العنصر المحدد"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>حذف</span>
-            </button>
-          )}
+          {/* Time Counter */}
+          <div className="bg-white border border-slate-200 px-3 py-1 rounded-lg font-mono text-xs font-bold text-slate-800 flex items-center gap-1.5 shadow-2xs">
+            <span className="text-sky-600">{formatTime(currentTime)}</span>
+            <span className="text-slate-400">/</span>
+            <span className="text-slate-500">{formatTime(totalDuration)}</span>
+          </div>
         </div>
 
-        {/* Zoom Level */}
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-slate-500 hidden md:inline">
-            عدد المقاطع: <strong className="text-slate-800 font-bold">{clips.length}</strong>
-          </span>
+        {/* Zoom & Track Stats */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 hidden sm:flex">
+            <span>المقاطع: <strong className="text-slate-800 font-bold">{clips.length}</strong></span>
+            <span>•</span>
+            <span>الشارات: <strong className="text-slate-800 font-bold">{textOverlays.length}</strong></span>
+          </div>
 
-          <div className="flex items-center gap-1 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs">
             <button
               onClick={() => setZoomLevel(Math.max(15, zoomLevel - 5))}
-              className="p-1 text-slate-400 hover:text-slate-700"
-              title="تصغير الخط الزمني"
+              className="p-1 text-slate-400 hover:text-slate-700 transition"
+              title="تصغير مقياس الخط الزمني"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
@@ -262,8 +221,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             />
             <button
               onClick={() => setZoomLevel(Math.min(80, zoomLevel + 5))}
-              className="p-1 text-slate-400 hover:text-slate-700"
-              title="تكبير الخط الزمني"
+              className="p-1 text-slate-400 hover:text-slate-700 transition"
+              title="تكبير مقياس الخط الزمني"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
