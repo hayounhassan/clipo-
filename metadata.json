@@ -1,0 +1,6 @@
+{
+  "name": "Reels & UGC Video Editor",
+  "description": "Short-form video editor for Reels, TikTok, and Real Estate UGC ads with timeline trimming, splitting, aspect ratios, overlays, and Supabase cloud persistence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
